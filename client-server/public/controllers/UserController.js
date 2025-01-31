@@ -1,141 +1,119 @@
 class UserController {
 
-    constructor(formIdCreate, formIdUpdate, tableId){
-
-        // Armazena as referências dos elementos de formulário e da tabela
+    constructor(formIdCreate, formIdUpdate, tableId) {
         this.formEl = document.getElementById(formIdCreate);
         this.formUpdateEl = document.getElementById(formIdUpdate);
         this.tableEl = document.getElementById(tableId);
 
-        // Inicializa os métodos de manipulação dos formulários
         this.onSubmit();
         this.onEdit();
-        this.selectAll();  // Carrega todos os usuários (agora com AJAX)
-
+        this.selectAll();
     }
 
-    onEdit(){
-        // Ao clicar no botão de cancelar na tela de edição, volta para a tela de criação
-        document.querySelector("#box-user-update .btn-cancel").addEventListener("click", e=>{
+    // Função que lida com a edição de um usuário
+    onEdit() {
+        document.querySelector("#box-user-update .btn-cancel").addEventListener("click", e => {
             this.showPanelCreate();
         });
 
-        // Ao submeter o formulário de edição
         this.formUpdateEl.addEventListener("submit", event => {
             event.preventDefault();
 
             let btn = this.formUpdateEl.querySelector("[type=submit]");
-            btn.disabled = true; // Desabilita o botão enquanto o envio está em andamento
+            btn.disabled = true;
 
-            let values = this.getValues(this.formUpdateEl); // Coleta os valores do formulário
-
-            let index = this.formUpdateEl.dataset.trIndex; // Obtém o índice da linha da tabela para atualizar
+            let values = this.getValues(this.formUpdateEl);
+            let index = this.formUpdateEl.dataset.trIndex;
             let tr = this.tableEl.rows[index];
 
-            let userOld = JSON.parse(tr.dataset.user); // Recupera os dados do usuário atual
-
-            // Combina os dados antigos com os novos valores
+            let userOld = JSON.parse(tr.dataset.user);
             let result = Object.assign({}, userOld, values);
 
-            // Faz a leitura da foto (se houver)
             this.getPhoto(this.formUpdateEl).then(
                 (content) => {
-
-                    // Se a foto não for alterada, mantém a foto anterior
                     if (!values.photo) {
                         result._photo = userOld._photo;
                     } else {
-                        result._photo = content; // Se houver foto nova, usa a nova foto
+                        result._photo = content;
                     }
 
                     let user = new User();
-                    user.loadFromJSON(result); // Cria o objeto do usuário com os novos dados
-                    user.save(); // Salva o usuário
+                    user.loadFromJSON(result);
+                    user.save();
 
-                    // Atualiza a linha da tabela com os novos dados
-                    this.getTr(user, tr);
+                    this.getTr(user, tr); // Atualiza a linha com o novo usuário
+                    this.updateCount();
 
-                    this.updateCount(); // Atualiza a contagem de usuários
-
-                    this.formUpdateEl.reset(); // Limpa o formulário
-                    btn.disabled = false; // Habilita novamente o botão de submit
-                    this.showPanelCreate(); // Volta para a tela de criação
-
+                    this.formUpdateEl.reset();
+                    btn.disabled = false;
+                    this.showPanelCreate(); // Volta para o painel de criação
                 },
                 (e) => {
-                    console.error(e); // Caso ocorra erro na leitura da foto
+                    console.error(e);
                 }
             );
-
         });
-
     }
 
-    onSubmit(){
-        // Ao submeter o formulário de criação
+    // Função que lida com o envio de um novo usuário
+    onSubmit() {
         this.formEl.addEventListener("submit", event => {
             event.preventDefault();
 
             let btn = this.formEl.querySelector("[type=submit]");
-            btn.disabled = true; // Desabilita o botão enquanto o envio está em andamento
+            btn.disabled = true;
 
-            let values = this.getValues(this.formEl); // Coleta os valores do formulário
+            let values = this.getValues(this.formEl);
+            if (!values) return false;
 
-            if (!values) return false; // Se os valores não forem válidos, não prossegue
-
-            // Faz a leitura da foto (se houver)
             this.getPhoto(this.formEl).then(
                 (content) => {
-
-                    values.photo = content; // Atribui a foto ao objeto de valores
-                    values.save(); // Salva o novo usuário
-
-                    this.addLine(values); // Adiciona a linha na tabela
-
-                    this.formEl.reset(); // Limpa o formulário
-                    btn.disabled = false; // Habilita novamente o botão de submit
-
-                }, 
+                    values.photo = content;
+                    values.save();
+                    this.addLine(values); // Adiciona a nova linha na tabela
+                    this.formEl.reset();
+                    btn.disabled = false;
+                },
                 (e) => {
-                    console.error(e); // Caso ocorra erro na leitura da foto
+                    console.error(e);
                 }
             );
-
         });
-
     }
 
-    getPhoto(formEl){
-        // Função para ler a foto do formulário (se houver)
+    // Função que lê a foto do usuário
+    getPhoto(formEl) {
         return new Promise((resolve, reject) => {
             let fileReader = new FileReader();
-            let elements = [...formEl.elements].filter(item => item.name === 'photo');
-            let file = elements[0].files[0];
+            let elements = [...formEl.elements].filter(item => {
+                if (item.name === 'photo') {
+                    return item;
+                }
+            });
 
+            let file = elements[0].files[0];
             fileReader.onload = () => {
-                resolve(fileReader.result); // Retorna o conteúdo da foto
+                resolve(fileReader.result);
             };
 
             fileReader.onerror = (e) => {
-                reject(e); // Caso ocorra um erro, retorna o erro
+                reject(e);
             };
 
             if (file) {
-                fileReader.readAsDataURL(file); // Converte a foto em base64
+                fileReader.readAsDataURL(file);
             } else {
-                resolve('dist/img/boxed-bg.jpg'); // Se não houver foto, usa uma imagem padrão
+                resolve('dist/img/boxed-bg.jpg'); // Foto padrão se não for selecionada
             }
         });
     }
 
-    getValues(formEl){
-        // Função para coletar os valores do formulário e validar
+    // Função que pega os valores do formulário
+    getValues(formEl) {
         let user = {};
         let isValid = true;
 
         [...formEl.elements].forEach(function (field, index) {
-
-            // Valida os campos obrigatórios
             if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
                 field.parentElement.classList.add('has-error');
                 isValid = false;
@@ -143,18 +121,17 @@ class UserController {
 
             if (field.name == "gender") {
                 if (field.checked) {
-                    user[field.name] = field.value; // Se for radio button, pega o valor selecionado
+                    user[field.name] = field.value;
                 }
-            } else if(field.name == "admin") {
-                user[field.name] = field.checked; // Se for checkbox, pega o estado (marcado/desmarcado)
+            } else if (field.name == "admin") {
+                user[field.name] = field.checked;
             } else {
-                user[field.name] = field.value; // Para outros campos, pega o valor diretamente
+                user[field.name] = field.value;
             }
-
         });
 
         if (!isValid) {
-            return false; // Se houver erro de validação, retorna false
+            return false;
         }
 
         return new User(
@@ -166,45 +143,45 @@ class UserController {
             user.password,
             user.photo,
             user.admin
-        ); // Retorna um novo objeto User
+        );
     }
 
-    selectAll(){
-        // Método modificado: Agora busca os usuários via AJAX
+    // Função que seleciona todos os usuários
+    selectAll() {
         let ajax = new XMLHttpRequest();
-        ajax.open('GET', '/users'); // Faz uma requisição GET para a URL /users
 
+        ajax.open('GET', '/users');
         ajax.onload = event => {
             let obj = { users: [] };
 
             try {
-                obj = JSON.parse(ajax.responseText); // Tenta parsear a resposta em JSON
+                obj = JSON.parse(ajax.responseText);
             } catch (e) {
-                console.error(e); // Caso ocorra um erro no parse, exibe no console
+                console.error(e);
             }
 
             obj.users.forEach(dataUser => {
                 let user = new User();
-                user.loadFromJSON(dataUser); // Carrega os dados do usuário
-                this.addLine(user); // Adiciona a linha na tabela
+                user.loadFromJSON(dataUser);
+                this.addLine(user); // Adiciona cada usuário na tabela
             });
         };
 
-        ajax.send(); // Envia a requisição
+        ajax.send();
     }
 
+    // Função que adiciona uma nova linha na tabela
     addLine(dataUser) {
-        // Adiciona uma nova linha na tabela com os dados do usuário
         let tr = this.getTr(dataUser);
         this.tableEl.appendChild(tr);
-        this.updateCount(); // Atualiza a contagem de usuários
+        this.updateCount();
     }
 
-    getTr(dataUser, tr = null){
-        // Cria a linha (tr) com os dados do usuário
+    // Função que gera o HTML de cada linha da tabela
+    getTr(dataUser, tr = null) {
         if (tr === null) tr = document.createElement('tr');
 
-        tr.dataset.user = JSON.stringify(dataUser); // Armazena os dados do usuário na linha
+        tr.dataset.user = JSON.stringify(dataUser);
 
         tr.innerHTML = `
             <td><img src="${dataUser.photo}" alt="User Image" class="img-circle img-sm"></td>
@@ -218,19 +195,19 @@ class UserController {
             </td>
         `;
 
-        this.addEventsTr(tr); // Adiciona os eventos aos botões de editar e excluir
+        this.addEventsTr(tr); // Adiciona os eventos de edição e exclusão
 
         return tr;
     }
 
-    addEventsTr(tr){
-        // Adiciona os eventos de edição e exclusão na linha
+    // Função que adiciona os eventos de editar e excluir nas linhas da tabela
+    addEventsTr(tr) {
         tr.querySelector(".btn-delete").addEventListener("click", e => {
             if (confirm("Deseja realmente excluir?")) {
                 let user = new User();
                 user.loadFromJSON(JSON.parse(tr.dataset.user));
                 user.remove(); // Remove o usuário
-                tr.remove(); // Remove a linha da tabela
+                tr.remove(); // Remove a linha
                 this.updateCount(); // Atualiza a contagem de usuários
             }
         });
@@ -259,4 +236,36 @@ class UserController {
                 }
             }
 
-            this.formUpdateEl.querySelector(".photo").src = json
+            this.formUpdateEl.querySelector(".photo").src = json._photo;
+            this.showPanelUpdate(); // Mostra o painel de atualização
+        });
+    }
+
+    // Função que exibe o painel de criação
+    showPanelCreate() {
+        document.querySelector("#box-user-create").style.display = "block";
+        document.querySelector("#box-user-update").style.display = "none";
+    }
+
+    // Função que exibe o painel de edição
+    showPanelUpdate() {
+        document.querySelector("#box-user-create").style.display = "none";
+        document.querySelector("#box-user-update").style.display = "block";
+    }
+
+    // Função que atualiza a contagem de usuários e administradores
+    updateCount() {
+        let numberUsers = 0;
+        let numberAdmin = 0;
+
+        [...this.tableEl.children].forEach(tr => {
+            numberUsers++;
+
+            let user = JSON.parse(tr.dataset.user);
+            if (user._admin) numberAdmin++;
+        });
+
+        document.querySelector("#number-users").innerHTML = numberUsers;
+        document.querySelector("#number-users-admin").innerHTML = numberAdmin;
+    }
+}
