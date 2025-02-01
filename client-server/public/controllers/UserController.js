@@ -2,12 +2,10 @@ class UserController {
 
     constructor(formIdCreate, formIdUpdate, tableId){
 
-        // Inicializa os elementos dos formulários e da tabela
         this.formEl = document.getElementById(formIdCreate);
         this.formUpdateEl = document.getElementById(formIdUpdate);
         this.tableEl = document.getElementById(tableId);
 
-        // Chama os métodos responsáveis por configurar os eventos
         this.onSubmit();
         this.onEdit();
         this.selectAll();
@@ -16,13 +14,11 @@ class UserController {
 
     onEdit(){
 
-        // Evento que ativa o cancelamento da edição e retorna ao formulário de criação
-        document.querySelector("#box-user-update .btn-cancel").addEventListener("click", e=>{
+        document.querySelector("#box-user-update .btn-cancel").addEventListener("click", e =>{ 
 
             this.showPanelCreate();
 
         });
-
 
         this.formUpdateEl.addEventListener("submit", event => {
 
@@ -161,19 +157,15 @@ class UserController {
         let user = {};
         let isValid = true;
 
-        // Itera sobre os elementos do formulário
         [...formEl.elements].forEach(function (field, index) {
 
-            // Verifica se campos obrigatórios (name, email, password) estão preenchidos
             if (['name', 'email', 'password'].indexOf(field.name) > -1 && !field.value) {
 
-                // Adiciona classe de erro caso o campo esteja vazio
                 field.parentElement.classList.add('has-error');
                 isValid = false;
 
             }
 
-            // Verifica se o campo é de gênero (radio buttons)
             if (field.name == "gender") {
 
                 if (field.checked) {
@@ -182,24 +174,20 @@ class UserController {
 
             } else if(field.name == "admin") {
 
-                // Se for checkbox, armazena o estado de seleção
                 user[field.name] = field.checked;
 
             } else {
 
-                // Para os outros campos, armazena o valor digitado
                 user[field.name] = field.value;
 
             }
 
         });
 
-        // Se algum campo obrigatório estiver vazio, retorna false
         if (!isValid) {
             return false;
         }
 
-        // Retorna um objeto User com os dados coletados do formulário
         return new User(
             user.name,
             user.gender,
@@ -215,10 +203,8 @@ class UserController {
 
     selectAll(){
 
-        // Faz uma requisição HTTP para buscar todos os usuários
-        HttpRequest.get('/users').then(data => {
+        User.getUsersStorage().then(data => {
 
-            // Para cada usuário retornado, cria um objeto User e adiciona à tabela
             data.users.forEach(dataUser => {
 
                 let user = new User();
@@ -232,7 +218,6 @@ class UserController {
         });
 
     }
-
 
     addLine(dataUser) {
 
@@ -278,52 +263,45 @@ class UserController {
 
                 user.loadFromJSON(JSON.parse(tr.dataset.user));
 
-                user.remove();
+                user.remove().then(data => {
 
-                tr.remove();
+                    tr.remove();
 
-                this.updateCount();
+                    this.updateCount();
+
+                });
 
             }
 
         });
 
-        // Evento de edição: ao clicar no botão de edição
         tr.querySelector(".btn-edit").addEventListener("click", e => {
 
-            // Converte os dados do usuário da linha para um objeto JSON
             let json = JSON.parse(tr.dataset.user);
 
-            // Define o índice da linha no formulário de edição
             this.formUpdateEl.dataset.trIndex = tr.sectionRowIndex;
 
-            // Itera sobre as propriedades do objeto JSON do usuário
             for (let name in json) {
 
-                // Busca o campo correspondente no formulário de edição
                 let field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "]");
 
                 if (field) {
 
-                    // Verifica o tipo de campo e preenche conforme necessário
                     switch (field.type) {
                         case 'file':
-                            continue; // Ignora campos do tipo 'file'
+                            continue;
                             break;
 
                         case 'radio':
-                            // Marca o botão de rádio correspondente ao valor do usuário
                             field = this.formUpdateEl.querySelector("[name=" + name.replace("_", "") + "][value=" + json[name] + "]");
                             field.checked = true;
                             break;
 
                         case 'checkbox':
-                            // Marca o checkbox se o valor for verdadeiro
                             field.checked = json[name];
                             break;
 
                         default:
-                            // Para outros tipos de campo, preenche o valor diretamente
                             field.value = json[name];
 
                     }
@@ -332,17 +310,14 @@ class UserController {
 
             }
 
-            // Atualiza a imagem de perfil no formulário de edição
             this.formUpdateEl.querySelector(".photo").src = json._photo;
 
-            // Mostra o painel de edição
             this.showPanelUpdate();
 
 
         });
 
     }
-
 
     showPanelCreate(){
 
