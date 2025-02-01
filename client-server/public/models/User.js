@@ -11,7 +11,7 @@ class User {
         this._password = password;
         this._photo = photo;
         this._admin = admin;
-        this._register = new Date();
+        this._register = new Date(); // A data de registro é inicializada com a data atual
 
     }
 
@@ -69,10 +69,9 @@ class User {
                     this[name] = new Date(json[name]);
                 break;
                 default:
-                    this[name] = json[name];
+                    if(name.substring(0, 1) === '_') this[name] = json[name];
 
             }
-            
 
         }
 
@@ -82,8 +81,10 @@ class User {
 
         let users = [];
 
+        // Se houver dados salvos de usuários no localStorage
         if (localStorage.getItem("users")) {
 
+            // Recupera os dados do localStorage e converte de JSON para objeto
             users = JSON.parse(localStorage.getItem("users"));
 
         }
@@ -96,43 +97,64 @@ class User {
 
         let usersID = parseInt(localStorage.getItem("usersID"));
 
+        // Se o ID não for válido, inicializa como 0
         if (!usersID > 0) usersID = 0;
 
-        usersID++;
+        usersID++; // Incrementa o ID
 
+        // Atualiza o localStorage com o novo ID
         localStorage.setItem("usersID", usersID);
 
         return usersID;
 
     }
 
+    toJSON () {
+
+        let json = {};
+
+        // Cria um objeto JSON com todas as propriedades do usuário
+        Object.keys(this).forEach(key => {
+
+            if (this[key] !== undefined) json[key] = this[key];
+
+        });
+
+        return json;
+
+    }
+
     save(){
 
-        let users = User.getUsersStorage();
+        return new Promise((resolve, reject) => {
 
-        if (this.id > 0) {
-            
-            users.map(u=>{
+            let promise;
 
-                if (u._id == this.id) {
+            // Se o usuário já tem um ID, atualiza o usuário existente, senão cria um novo
+            if (this.id) {
 
-                    Object.assign(u, this);
+                promise = HttpRequest.put(`/users/${this.id}`, this.toJSON());
 
-                }
+            } else {
 
-                return u;
+                promise = HttpRequest.post(`/users`, this.toJSON());
+
+            }
+
+            promise.then(data => {
+
+                // Quando a requisição for bem-sucedida, carrega os dados do usuário atualizado
+                this.loadFromJSON(data);
+
+                resolve(this);
+
+            }).catch(e => {
+
+                reject(e);
 
             });
 
-        } else {
-
-            this._id = this.getNewID();
-
-            users.push(this);
-
-        }
-
-        localStorage.setItem("users", JSON.stringify(users));
+        });
 
     }
 
@@ -140,6 +162,7 @@ class User {
 
         let users = User.getUsersStorage();
 
+        // Encontra e remove o usuário pelo ID
         users.forEach((userData, index)=>{
 
             if (this._id == userData._id) {
@@ -150,6 +173,7 @@ class User {
 
         });
 
+        // Atualiza os usuários no localStorage após a remoção
         localStorage.setItem("users", JSON.stringify(users));
 
     }
